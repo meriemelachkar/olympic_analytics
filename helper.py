@@ -1,9 +1,22 @@
 import numpy as np
 
-
 def fetch_medal_tally(df, year, country):
+    """
+    Calcule le tableau des médailles en fonction de l'année et du pays sélectionnés.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        year: Année sélectionnée ou 'Overall' pour toutes les années
+        country: Pays sélectionné ou 'Overall' pour tous les pays
+    
+    Returns:
+        DataFrame contenant le décompte des médailles
+    """
+    # Supprime les doublons pour éviter de compter plusieurs fois la même médaille
     medal_df = df.drop_duplicates(subset=['Team', 'NOC', 'Games', 'Year', 'City', 'Sport', 'Event', 'Medal'])
     flag = 0
+    
+    # Gestion des différents cas de filtrage
     if year == 'Overall' and country == 'Overall':
         temp_df = medal_df
     if year == 'Overall' and country != 'Overall':
@@ -14,14 +27,16 @@ def fetch_medal_tally(df, year, country):
     if year != 'Overall' and country != 'Overall':
         temp_df = medal_df[(medal_df['Year'] == year) & (medal_df['region'] == country)]
 
+    # Agrégation des résultats selon le flag
     if flag == 1:
+        # Pour un pays spécifique, grouper par année
         x = temp_df.groupby('Year').sum()[['Gold', 'Silver', 'Bronze']].sort_values('Year').reset_index()
     else:
-        x = temp_df.groupby('region').sum()[['Gold', 'Silver', 'Bronze']].sort_values('Gold',
-                                                                                      ascending=False).reset_index()
+        # Pour une année spécifique ou global, grouper par pays
+        x = temp_df.groupby('region').sum()[['Gold', 'Silver', 'Bronze']].sort_values('Gold', ascending=False).reset_index()
 
+    # Calcul du total et conversion en entiers
     x['total'] = x['Gold'] + x['Silver'] + x['Bronze']
-
     x['Gold'] = x['Gold'].astype('int')
     x['Silver'] = x['Silver'].astype('int')
     x['Bronze'] = x['Bronze'].astype('int')
@@ -29,61 +44,83 @@ def fetch_medal_tally(df, year, country):
 
     return x
 
-
 def country_year_list(df):
+    """
+    Prépare les listes des années et pays pour les filtres de sélection.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+    
+    Returns:
+        Tuple contenant (liste des années, liste des pays)
+    """
+    # Création de la liste des années
     years = df['Year'].unique().tolist()
     years.sort()
     years.insert(0, 'Overall')
 
+    # Création de la liste des pays
     country = np.unique(df['region'].dropna().values).tolist()
     country.sort()
     country.insert(0, 'Overall')
 
-    return years,country
+    return years, country
 
 def data_over_time(df, col):
-    # First get count of unique entries per year
+    """
+    Analyse l'évolution d'une métrique au fil du temps.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        col: Colonne à analyser
+    
+    Returns:
+        DataFrame avec l'évolution de la métrique par année
+    """
     nations_over_time = df.drop_duplicates(['Year', col]).groupby('Year')[col].count().reset_index()
-    # Rename Year to Edition for clarity
     nations_over_time.rename(columns={'Year': 'Edition'}, inplace=True)
-    # Sort by year/edition
     nations_over_time = nations_over_time.sort_values('Edition')
     
     return nations_over_time
 
 def most_successful(df, sport):
-    # 1. First drop NA medals
+    """
+    Identifie les athlètes les plus performants globalement ou par sport.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        sport: Sport spécifique ou 'Overall' pour tous les sports
+        
+    Returns:
+        DataFrame contenant les 15 athlètes les plus médaillés
+    """
     temp_df = df.dropna(subset=['Medal'])
-
-    # 2. Filter by sport if needed
+    
     if sport != 'Overall':
         temp_df = temp_df[temp_df['Sport'] == sport]
 
-    # 3. Get medal counts
     medal_counts = temp_df['Name'].value_counts().to_frame().reset_index()
-    
-    # 4. Rename columns explicitly
     medal_counts.columns = ['Name', 'Medals']
     
-    # 5. Get top 15
     top_15 = medal_counts.head(15)
-    
-    # 6. Get athlete details
     athlete_df = df[['Name', 'Sport', 'region']].drop_duplicates(subset=['Name'])
     
-    # 7. Merge the data
-    result = top_15.merge(
-        athlete_df,
-        on='Name',
-        how='left'
-    )
-    
-    # 8. Final cleanup and column ordering
+    result = top_15.merge(athlete_df, on='Name', how='left')
     final = result[['Name', 'Medals', 'Sport', 'region']].drop_duplicates()
     
     return final
 
-def yearwise_medal_tally(df,country):
+def yearwise_medal_tally(df, country):
+    """
+    Calcule le nombre total de médailles par année pour un pays donné.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        country: Pays à analyser
+        
+    Returns:
+        DataFrame avec le décompte des médailles par année
+    """
     temp_df = df.dropna(subset=['Medal'])
     temp_df.drop_duplicates(subset=['Team', 'NOC', 'Games', 'Year', 'City', 'Sport', 'Event', 'Medal'], inplace=True)
 
@@ -92,45 +129,64 @@ def yearwise_medal_tally(df,country):
 
     return final_df
 
-def country_event_heatmap(df,country):
+def country_event_heatmap(df, country):
+    """
+    Crée une table pivot pour visualiser les performances d'un pays par sport et par année.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        country: Pays à analyser
+        
+    Returns:
+        Table pivot des médailles par sport et année
+    """
     temp_df = df.dropna(subset=['Medal'])
     temp_df.drop_duplicates(subset=['Team', 'NOC', 'Games', 'Year', 'City', 'Sport', 'Event', 'Medal'], inplace=True)
 
     new_df = temp_df[temp_df['region'] == country]
-
     pt = new_df.pivot_table(index='Sport', columns='Year', values='Medal', aggfunc='count').fillna(0)
+    
     return pt
 
-
 def most_successful_countrywise(df, country):
-    # Filter for medals and country
+    """
+    Identifie les athlètes les plus performants pour un pays spécifique.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        country: Pays à analyser
+        
+    Returns:
+        DataFrame contenant les 10 meilleurs athlètes du pays
+    """
     temp_df = df.dropna(subset=['Medal'])
     temp_df = temp_df[temp_df['region'] == country]
     
-    # Get medal counts
     medal_counts = temp_df['Name'].value_counts().to_frame().reset_index()
     medal_counts.columns = ['Name', 'Medals']
     
-    # Get top 10
     top_10 = medal_counts.head(10)
-    
-    # Get athlete details
     athlete_df = df[['Name', 'Sport']].drop_duplicates(subset=['Name'])
     
-    # Merge and clean up
-    result = top_10.merge(
-        athlete_df,
-        on='Name',
-        how='left'
-    )
-    
+    result = top_10.merge(athlete_df, on='Name', how='left')
     final = result[['Name', 'Medals', 'Sport']].drop_duplicates()
     
     return final
 
-def weight_v_height(df,sport):
+def weight_v_height(df, sport):
+    """
+    Prépare les données pour l'analyse poids/taille des athlètes.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        sport: Sport spécifique ou 'Overall' pour tous les sports
+        
+    Returns:
+        DataFrame filtré avec les données poids/taille
+    """
     athlete_df = df.drop_duplicates(subset=['Name', 'region'])
     athlete_df['Medal'].fillna('No Medal', inplace=True)
+    
     if sport != 'Overall':
         temp_df = athlete_df[athlete_df['Sport'] == sport]
         return temp_df
@@ -138,6 +194,15 @@ def weight_v_height(df,sport):
         return athlete_df
 
 def men_vs_women(df):
+    """
+    Analyse la participation hommes/femmes aux Jeux Olympiques par année.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        
+    Returns:
+        DataFrame avec le nombre d'athlètes hommes et femmes par année
+    """
     athlete_df = df.drop_duplicates(subset=['Name', 'region'])
 
     men = athlete_df[athlete_df['Sex'] == 'M'].groupby('Year').count()['Name'].reset_index()
@@ -145,7 +210,6 @@ def men_vs_women(df):
 
     final = men.merge(women, on='Year', how='left')
     final.rename(columns={'Name_x': 'Male', 'Name_y': 'Female'}, inplace=True)
-
     final.fillna(0, inplace=True)
 
     return final
