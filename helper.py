@@ -213,7 +213,7 @@ def men_vs_women(df):
     final.fillna(0, inplace=True)
 
     return final
-
+from sklearn.linear_model import LinearRegression
 def predict_medals(df, country):
     """
     Prédit le nombre de médailles futures pour un pays donné.
