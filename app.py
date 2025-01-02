@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
 
 # Chargement et prétraitement des données
 df = pd.read_csv('athlete_events.csv')

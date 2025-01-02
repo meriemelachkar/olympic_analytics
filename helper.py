@@ -214,12 +214,6 @@ def men_vs_women(df):
 
     return final
 
-
-
-import numpy as np
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-
 def predict_medals(df, country):
     """
     Prédit le nombre de médailles futures pour un pays donné.
