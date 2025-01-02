@@ -213,3 +213,71 @@ def men_vs_women(df):
     final.fillna(0, inplace=True)
 
     return final
+
+
+
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+
+def predict_medals(df, country):
+    """
+    Prédit le nombre de médailles futures pour un pays donné.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        country: Pays pour lequel faire des prévisions
+        
+    Returns:
+        Dictionnaire contenant les prédictions et les données historiques
+    """
+    # Filtrer les données pour le pays sélectionné
+    country_df = df[df['region'] == country]
+    
+    # Compter le nombre de médailles par année
+    medals_by_year = country_df.groupby('Year')['Medal'].count().reset_index()
+    
+    # Préparer les données pour le modèle
+    X = medals_by_year['Year'].values.reshape(-1, 1)
+    y = medals_by_year['Medal'].values
+    
+    # Créer et entraîner le modèle
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    # Faire des prédictions pour les 3 prochaines olympiades
+    last_year = X[-1][0]
+    future_years = np.array([[last_year + 4], [last_year + 8], [last_year + 12]])
+    predictions = model.predict(future_years)
+    
+    # Arrondir les prédictions à des nombres entiers
+    predictions = np.maximum(0, predictions.round())
+    
+    return {
+        'historical_years': X.flatten(),
+        'historical_medals': y,
+        'future_years': future_years.flatten(),
+        'predictions': predictions,
+        'model': model
+    }
+
+def get_prediction_metrics(df, country):
+    """
+    Calcule des métriques statistiques sur les performances passées.
+    
+    Args:
+        df: DataFrame contenant les données olympiques
+        country: Pays à analyser
+        
+    Returns:
+        Dictionnaire contenant les métriques
+    """
+    country_df = df[df['region'] == country]
+    medals_by_year = country_df.groupby('Year')['Medal'].count()
+    
+    return {
+        'average_medals': round(medals_by_year.mean(), 2),
+        'max_medals': int(medals_by_year.max()),
+        'min_medals': int(medals_by_year.min()),
+        'total_medals': int(medals_by_year.sum())
+    }
